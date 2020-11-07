@@ -45,6 +45,8 @@ def clean_txt(txt):
     ret = re.sub(r"(\r\n)+", "\n", ret)
     ret = re.sub(r"\n+", "\n", ret)
     ret = re.sub(r"\r+", "\n", ret)
+    ret = re.sub(r"^[\.\,]?[\s\r\t\n]*", "", ret)
+    ret = re.sub(r"[\s\r\t\n]+$", "", ret)
     return ret
 
 
@@ -57,6 +59,14 @@ def sent_tokenize_ja(txt):
     ary = jp_sent_tokenizer.tokenize(txt)
     return [v for v in filter(lambda x: len(x) > 3, [clean_txt(s) for s in ary])]
 
+# If you process news articles, it's better than the above method.
+def sent_tokenize_ja_news(txt):
+    ary = re.split("(。|！|？|\n|\s\s)",txt)
+    for i in range(len(ary) - 1):
+        if re.search("(「|「)", ary[i]) and not re.search("(」|」)", ary[i]) and re.search("(」|」)", ary[i+1]) :
+            ary[i] = ary[i] + ary[i+1]
+            i+=1
+    return ["{}。".format(v) for v in filter(lambda x: len(x) > 3, [re.sub("^[\s\r\n]+","",clean_txt(s)) for s in ary])]
 
 def sent_tokenize_en(txt):
     ary = sent_tokenize(clean_txt(re.sub("\.", ". ", txt)))
@@ -120,7 +130,7 @@ def count_words(sentence):
     return len(nltk.word_tokenize(sentence))
 
 
-def fiilter_aligns(align_sents, threshold=0.7, mode="mecab"):
+def filter_aligns(align_sents, threshold=0.7, mode="mecab"):
     # sort and uniq_en
     en_sents = {}
     ret = []
@@ -158,7 +168,7 @@ def fiilter_aligns(align_sents, threshold=0.7, mode="mecab"):
     return filtered_ret
 
 
-def fiilter_sents(sents):
+def filter_sents(sents):
     for_filter_sents = ['Share this with', 'Email', 'Twitter', 'Facebook','Pinterest', 'WhatsApp',
                     'Messenger','Hatena', 'Mixi', 'Line', 'このリンクをコピーする', 'LinkedIn']
     def _filter_match(lhs, rhs):
@@ -194,8 +204,8 @@ def get_align_html(ja_html, en_html, url = "", ja_bp="p", en_bp="p"):
     ja_article = re.sub("(\r\n|\r|\n|\t){2,}", ". ", ja_article)
     en_article = get_article(en_html, url, en_bp)
     en_article = re.sub("(\r\n|\r|\n|\t){2,}", ". ", en_article)
-    ja_sents = fiilter_sents(sent_tokenize_ja(clean_txt(ja_article)))
-    en_sents = fiilter_sents(sent_tokenize_en(clean_txt(en_article)))
+    ja_sents = filter_sents(sent_tokenize_ja(clean_txt(ja_article)))
+    en_sents = filter_sents(sent_tokenize_en(clean_txt(en_article)))
 
     if len(ja_sents) < 50:
         threshold = 0.3
@@ -215,7 +225,7 @@ def get_align_html(ja_html, en_html, url = "", ja_bp="p", en_bp="p"):
         print("align_candidate=\t{}\t{}\t{}\n".format(to_one_line(tpl[1]), to_one_line(tpl[2]), tpl[0]))
 
 
-    align_sents_filter = fiilter_aligns(align_sents)
+    align_sents_filter = filter_aligns(align_sents)
     print("original={} filter={} \t url={}".format(len(align_sents), len(align_sents_filter), url))
 
     align_texts += align_sents_filter
